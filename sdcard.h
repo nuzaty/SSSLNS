@@ -4,6 +4,9 @@
 
 extern unsigned char SDError; 
 
+void SPI2_Init();
+unsigned char SPI2_Write(unsigned char data);
+
 unsigned char SD_Init();
 unsigned char SD_ReadSector(unsigned long addr, unsigned char* buffer);
 unsigned char SD_WriteSector(unsigned long addr, unsigned char* data);

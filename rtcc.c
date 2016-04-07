@@ -105,7 +105,7 @@ void RTCC_Update(void) {
             secTens, secOnes);
 }
 
-char* RTCC_GetLcdString(void) {        
+char* RTCC_GetLcdString(void) {  
     return lcdString;
 }
 

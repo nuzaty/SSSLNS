@@ -14,13 +14,13 @@
 
 #define SW_TRIS _TRISA2
 
-#define RELAY_SOURCE _LATA6
-#define RELAY_SOURCE_TRIS _TRISA6
+#define RELAY_SOURCE _LATA9
+#define RELAY_SOURCE_TRIS _TRISA9
 #define SOURCE_GRID 0
 #define SOURCE_BATTERY 1
 
-#define RELAY_LED _LATA7
-#define RELAY_LED_TRIS _TRISA7
+#define RELAY_LED _LATA10
+#define RELAY_LED_TRIS _TRISA10
 #define TURN_OFF_LED 0
 #define TURN_ON_LED 1
 
@@ -50,7 +50,7 @@ void init() {
     // Peripherals Initialize
     LCD_Init();
      
-    // Interrupt 3 & 4 Initialize    
+    // Interrupt 3 Initialize    
     SW_TRIS = TRIS_INPUT; // RA2/INT3 as input;
     
     _INT3IP = 1;
@@ -64,7 +64,7 @@ void init() {
     
     // Select battery as voltage source and turn on LED light
     RELAY_SOURCE = SOURCE_BATTERY; 
-    RELAY_LED = TURN_ON_LED;
+    RELAY_LED = TURN_OFF_LED;
 }
 
 void LCD_Update() {
@@ -75,17 +75,17 @@ void LCD_Update() {
         case 0:
             LCD_Puts("Load Data           ");
             LCD_Row(2);
-            sprintf(lcdChar, "V:%7.3f  I:%5.3f  ", data.vLoadRms, data.iLoadRms);
+            sprintf(lcdChar, "V:%-7.3f  I:%-5.3f  ", data.vLoadRms, data.iLoadRms);
             LCD_Puts(lcdChar);
             LCD_Row(3);
-            sprintf(lcdChar, "P:%7.3f PF:%5.3f  ", data.pLoad, data.pfLoad);
+            sprintf(lcdChar, "P:%-7.3f PF:%-6.3f ", data.pLoad, data.pfLoad);
             LCD_Puts(lcdChar);
             break;
             
         case 1:            
             LCD_Puts("PV Data             ");
             LCD_Row(2);
-            sprintf(lcdChar, "V:%6.3f I:%6.3f   ", data.vPV, data.iPV);
+            sprintf(lcdChar, "V:%-6.3f I:%-6.3f  ", data.vPV, data.iPV);
             LCD_Puts(lcdChar); 
             LCD_Row(3);
             LCD_Puts("                    ");
@@ -94,7 +94,7 @@ void LCD_Update() {
         case 2:                        
             LCD_Puts("Battery Data        ");
             LCD_Row(2);
-            sprintf(lcdChar, "V:%6.3f I:%6.3f   ", data.vBatt, data.iBatt);
+            sprintf(lcdChar, "V:%-6.3f I:%-6.3f  ", data.vBatt, data.iBatt);
             LCD_Puts(lcdChar);         
             LCD_Row(3);
             LCD_Puts("                    ");
@@ -105,7 +105,8 @@ void LCD_Update() {
             LCD_Row(2);
             LCD_Puts(RTCC_GetLcdString());         
             LCD_Row(3);
-            LCD_Puts("                    "); 
+            sprintf(lcdChar, "V LDR:%-6.3f", data.vLdr);
+            LCD_Puts(lcdChar);
             break;
             
         default:
@@ -120,7 +121,7 @@ int main(void) {
     while(1) {        
         LCD_Update();
         SDC_Update();
-        RELAY_LED = (ADC_GetLdrVolt() <= LDR_ACTIVE_VOLTAGE)? TURN_OFF_LED : TURN_ON_LED;           
+        RELAY_LED = (ADC_GetLdrVolt() <= LDR_ACTIVE_VOLTAGE)? TURN_OFF_LED : TURN_ON_LED;         
     }             
     return 0;
 }

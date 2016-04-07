@@ -10,16 +10,41 @@
 #define ILOAD 5
 #define VLDR 6
 
-#define SAMPLE_COUNT 4096
+#define VREF 3.244
 
-#define  MAX_CHNUM	 			7		// Highest Analog input number in Channel Scan
-#define  SAMP_BUFF_SIZE	 		1		// Size of the input buffer per analog input
-#define  NUM_CHS2SCAN			7		// Number of channels enabled for channel scan
+// Parameter get from experiment
 
-// Number of locations for ADC buffer = 7 (AN0 to AN6) x 1 = 7 words
-// Align the buffer to 7 words or 14 bytes. This is needed for peripheral indirect mode
-static int BufferA[MAX_CHNUM+1][SAMP_BUFF_SIZE] __attribute__((space(dma),aligned(32)));
-static int BufferB[MAX_CHNUM+1][SAMP_BUFF_SIZE] __attribute__((space(dma),aligned(32)));
+#define IPV_OFFSET 1.6083224985
+#define IPV_REVERSE_GAIN -9.94401262349
+
+#define IBATT_OFFSET 1.5966829475
+#define IBATT_REVERSE_GAIN -9.97649657126
+
+#define VPV_OFFSET 0.0025681815
+#define VPV_REVERSE_GAIN 17.3287472688
+
+#define VBATT_OFFSET 0.003886364
+#define VBATT_REVERSE_GAIN 17.2806534686
+
+#define ILOAD_OFFSET 1.270
+#define ILOAD_REVERSE_GAIN -0.35967442377
+
+#define VLOAD_OFFSET 0
+#define VLOAD_REVERSE_GAIN -236.796297643
+
+//ADC Configure
+
+#define SAMPLE_COUNT 5720
+#define LDR_SAMPLE_COUNT 128
+
+#define MAX_CHNUM	 	7	// Highest Analog input number in Channel Scan
+#define SAMP_BUFF_SIZE  8	// Size of the input buffer per analog input
+#define NUM_CHS2SCAN    7	// Number of channels enabled for channel scan
+
+// Number of locations for ADC buffer = 7 (AN0 to AN6) x 8 = 56 words
+// Align the buffer to 64 words or 128 bytes. This is needed for peripheral indirect mode
+static int BufferA[MAX_CHNUM+1][SAMP_BUFF_SIZE] __attribute__((space(dma),aligned(128)));
+static int BufferB[MAX_CHNUM+1][SAMP_BUFF_SIZE] __attribute__((space(dma),aligned(128)));
 
 static int result[MAX_CHNUM];
 
@@ -27,25 +52,75 @@ static long double sumSquareVLoad;
 static long double sumSquareILoad;
 static long double sumVILoad;
 
-static long double sumVPV;
-static long double sumIPV;
-static long double sumVBatt;
-static long double sumIBatt;
-static long double sumVLdr;
+static double sumVPV;
+static double sumIPV;
+static double sumVBatt;
+static double sumIBatt;
+static double sumVLdr;
 
 static unsigned int sampleCount;
-static char dataComplete;
+static unsigned int ldrSampleCount;
+
 
 static AdcData data;
 static char stringData[256];
 
+static unsigned char dataComplete = 0;
+
 //Function Prototype
+
 void DMA_Init(void);
 double ADC_ToVolt(unsigned int adcValue);
-double ADC_DcVoltMeasurement(unsigned int adcValue);
-double ADC_AcVoltMeasurement(unsigned int adcValue);
-double ADC_CurrentMeasurement(unsigned int adcValue);
-double ADC_LoadCurrentMeasurement(unsigned int adcValue);
+
+// Volt Measurement
+
+double ADC_PvVoltMeasurement(unsigned int adcValue) {
+    return (ADC_ToVolt(adcValue) - VPV_OFFSET) * VPV_REVERSE_GAIN ;
+}
+
+double ADC_BatteryVoltMeasurement(unsigned int adcValue) {
+    return (ADC_ToVolt(adcValue) - VBATT_OFFSET) * VBATT_REVERSE_GAIN ;
+}
+
+double ADC_LoadVoltMeasurement(unsigned int adcValue) {    
+    return (ADC_ToVolt(adcValue) - VLOAD_OFFSET) * VLOAD_REVERSE_GAIN ;
+}
+
+// Current Measurement
+
+double ADC_PvCurrentMeasurement(unsigned int adcValue) {    
+    return (ADC_ToVolt(adcValue) - IPV_OFFSET) * IPV_REVERSE_GAIN ;
+}
+
+double ADC_BatteryCurrentMeasurement(unsigned int adcValue) {
+    return (ADC_ToVolt(adcValue) - IBATT_OFFSET) * IBATT_REVERSE_GAIN ;
+}
+
+double ADC_LoadCurrentMeasurement(unsigned int adcValue) {
+    return (ADC_ToVolt(adcValue) - ILOAD_OFFSET) * ILOAD_REVERSE_GAIN ;
+}
+
+// Basic ADC function
+
+double ADC_ToVolt(unsigned int adcValue) {
+    return (((adcValue+1)*2)/2048.0) * VREF;
+}
+
+AdcData ADC_GetData(void) {
+    while(!dataComplete);
+    return data;
+}
+
+char* ADC_GetStringData(void) {
+    return stringData;
+}
+
+double ADC_GetLdrVolt(void) {
+    while(!dataComplete);
+    return data.vLdr;
+}
+
+// DMA Interrupt
 
 unsigned int DmaBuffer = 0;
 
@@ -59,28 +134,29 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
             result[i] = BufferB[i][0];
 	}
     
-    sumVPV += ADC_DcVoltMeasurement(result[VPV]);;
-    sumIPV += ADC_CurrentMeasurement(result[IPV]);
-    sumVBatt += ADC_DcVoltMeasurement(result[VBATT]);
-    sumIBatt += ADC_CurrentMeasurement(result[IBATT]);    
-    sumVLdr += ADC_ToVolt(result[VLDR]);    
-
-    data.vLoad = ADC_AcVoltMeasurement(result[VLOAD]);
+    sumVPV += ADC_PvVoltMeasurement(result[VPV]);;
+    sumIPV += ADC_PvCurrentMeasurement(result[IPV]);
+    sumVBatt += ADC_BatteryVoltMeasurement(result[VBATT]);
+    sumIBatt += ADC_BatteryCurrentMeasurement(result[IBATT]);    
+    sumVLdr += ADC_ToVolt(result[VLDR]);
+    
+    data.vLoad = ADC_LoadVoltMeasurement(result[VLOAD]);
     data.iLoad = ADC_LoadCurrentMeasurement(result[ILOAD]);    
     
     sumSquareVLoad += data.vLoad * data.vLoad;
     sumSquareILoad += data.iLoad * data.iLoad;
     sumVILoad += data.vLoad * data.iLoad;    
 
-    ++sampleCount;    
-        
+    ++ldrSampleCount;
+    ++sampleCount; 
+    
+    if (ldrSampleCount == LDR_SAMPLE_COUNT) {
+        data.vLdr = sumVLdr / LDR_SAMPLE_COUNT;
+        sumVLdr = 0;
+        ldrSampleCount = 0;
+    }
+    
     if (sampleCount == SAMPLE_COUNT) { 
-        
-        data.vPV = sumVPV/SAMPLE_COUNT;
-        data.iPV = sumIPV/SAMPLE_COUNT;
-        data.vBatt = sumVBatt/SAMPLE_COUNT;
-        data.iBatt = sumIBatt/SAMPLE_COUNT;  
-        data.vLdr = sumVLdr/SAMPLE_COUNT;
         
         data.vLoadRms = sqrtl(sumSquareVLoad / SAMPLE_COUNT);
         data.iLoadRms = sqrtl(sumSquareILoad / SAMPLE_COUNT);
@@ -99,17 +175,22 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
             data.vBatt, data.iBatt,
             data.vLoadRms, data.iLoadRms,
             data.pLoad, data.pfLoad);
-    
-        //Reset All
+        
+        data.vPV = sumVPV / SAMPLE_COUNT;
+        data.iPV = sumIPV / SAMPLE_COUNT;
+        data.vBatt = sumVBatt / SAMPLE_COUNT;
+        data.iBatt = sumIBatt / SAMPLE_COUNT;
+        
         sumVPV = 0;
         sumIPV = 0;
         sumVBatt = 0;
-        sumIBatt = 0;
-        sumVLdr = 0;
+        sumIBatt = 0; 
+    
+        //Reset All
         sumSquareVLoad = 0;
         sumSquareILoad = 0;
         sumVILoad = 0;
-        sampleCount = 0;
+        sampleCount = 0;   
         
         dataComplete = 1;
     }    
@@ -118,25 +199,29 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
 	IFS0bits.DMA0IF = 0;		// Clear the DMA0 Interrupt Flag
 }
 
+// ADC
+
 void ADC_Init(void) {
 
     AD1CON1bits.FORM = 0;	  	// Unsinged Integer Format
 	AD1CON1bits.SSRC = 7;		// Auto conversion
-    AD1CON1bits.ASAM = 0;		// Sampling begins when SAMP bit is set (for now)
+    AD1CON1bits.ASAM = 1;		// Sampling begins immediately after last conversion. SAMP bit is auto-set    
     
 	AD1CON1bits.AD12B = 0;		// 10-bit ADC operation	
 
+    AD1CON2bits.ALTS = 0;
+    AD1CHS0bits.CH0NA = 0;   
 	AD1CON2bits.CSCNA = 1;		// Scan Input Selections for CH0+ during Sample A bit
 	AD1CON2bits.CHPS = 0;		// Converts CH0
     
     AD1CON3bits.ADRC = 0;		// ADC Clock is derived from Systems Clock
-	AD1CON3bits.SAMC = 8;		// Auto Sample Time = 8*Tad		
-	AD1CON3bits.ADCS = 3;		// ADC Conversion Clock Tad=Tcy*(ADCS+1)= (1/40M)*4 = 100ns
-								// ADC Conversion Time for 10-bit Tc=12*Tad = 1200ns (833 KHz)
+	AD1CON3bits.SAMC = 8;		// Auto Sample Time = 8 * Tad = 600ns		
+	AD1CON3bits.ADCS = 4;		// 1 Tad = 75ns / 12 Tad = 900ns
     
 	AD1CON1bits.ADDMABM = 0;                // DMA buffers are built in scatter/gather mode
 	AD1CON2bits.SMPI = (NUM_CHS2SCAN-1);	// Genertate DMA interrupt every NUM_CHS2SCAN sample
-	AD1CON4bits.DMABL = 0;                  // Each buffer contains 1 words
+        
+	AD1CON4bits.DMABL = 3;                  // Each buffer contains 8 words
 
     AD1CSSH = 0x0000;
 	AD1CSSL = 0x007F;	 // Enable AN0-AN6 for channel scan
@@ -146,12 +231,10 @@ void ADC_Init(void) {
 	
 	IFS0bits.AD1IF   = 0;	// Clear the A/D interrupt flag bit
 	IEC0bits.AD1IE   = 0;	// Do Not Enable A/D interrupt
-    
+           
 	AD1CON1bits.ADON = 1;	// Turn on the A/D converter
-    delay_ms(1);			// Delay to allow ADC to settle     
-    
-    AD1CON1bits.ASAM = 1;	// Sampling begins immediately after last conversion. SAMP bit is auto-set
- 
+    delay_ms(1);			// Delay to allow ADC to settle         
+        
     DMA_Init();             // Settle DMA
 }
 
@@ -172,47 +255,15 @@ void DMA_Init(void) {
 	DMA0CONbits.CHEN=1;				// Enable DMA
 }
 
+// old function
+
+/**
+double ADC_GetLux(void) {
+    const double volt = ADC_GetLdrVolt();
+    return 28642000000 * powl((volt * 10000 / 3.3 - volt), -2.6028);
+}
+
 double ADC_GetVolt(unsigned int ch) {
     return ADC_ToVolt(result[ch]);
 }
-
-double ADC_ToVolt(unsigned int adcValue) {
-    return (adcValue / 1024.0) * 3.30;
-}
-
-double ADC_DcVoltMeasurement(unsigned int adcValue) {
-    const double REVERSE_GAIN = 17.27692478;
-    return ADC_ToVolt(adcValue)* REVERSE_GAIN ;
-}
-
-double ADC_AcVoltMeasurement(unsigned int adcValue) {
-    const double GAIN = -0.004223039;
-    return (ADC_ToVolt(adcValue) - 1.651) / GAIN;
-}
-
-double ADC_CurrentMeasurement(unsigned int adcValue) {    
-    const double SENSITIVTY = -0.1;
-    const double VOLT_AT_ZERO_CURRENT = 1.6;
-    return (ADC_ToVolt(adcValue) - VOLT_AT_ZERO_CURRENT) / SENSITIVTY;
-}
-
-double ADC_LoadCurrentMeasurement(unsigned int adcValue) {    
-    const double SENSITIVTY = -2.780292214;
-    const double VOLT_AT_ZERO_CURRENT = 1.270;
-    return (ADC_ToVolt(adcValue) - VOLT_AT_ZERO_CURRENT) / SENSITIVTY;
-}
-
-AdcData ADC_GetData(void) {
-    while(!dataComplete);
-    return data;
-}
-
-double ADC_GetLdrVolt(void) {
-    while(!dataComplete);
-    return data.vLdr;
-}
-
-char* ADC_GetStringData(void) {
-    while(!dataComplete);
-    return stringData;
-}
+**/

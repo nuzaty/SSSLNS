@@ -202,7 +202,7 @@ File f;
 File *fp;
 unsigned char sdCardModuleStart = 0;
 
-void SDC_Start(void) {   
+void SDC_Start(void) {
     
     SDError = 0;
     FIOError = 0;    
