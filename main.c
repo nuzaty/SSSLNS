@@ -43,7 +43,7 @@ void init() {
     _NSTDIS = 1;  //Interrupt Nesting Disable    
             
     // Digital Communication Initialize
-    UART1_Init(); 
+    //UART1_Init(); 
     ADC_Init();
     I2C1_Init();    
             
@@ -65,6 +65,8 @@ void init() {
     // Select battery as voltage source and turn on LED light
     RELAY_SOURCE = SOURCE_BATTERY; 
     RELAY_LED = TURN_OFF_LED;
+    
+    SDC_Start();
 }
 
 void LCD_Update() {
@@ -75,27 +77,70 @@ void LCD_Update() {
         case 0:
             LCD_Puts("Load Data           ");
             LCD_Row(2);
-            sprintf(lcdChar, "V:%-7.3f  I:%-5.3f  ", data.vLoadRms, data.iLoadRms);
-            LCD_Puts(lcdChar);
-            LCD_Row(3);
-            sprintf(lcdChar, "P:%-7.3f PF:%-6.3f ", data.pLoad, data.pfLoad);
-            LCD_Puts(lcdChar);
+            if (data.vLoadRms != 0 && data.iLoadRms != 0) {
+                sprintf(lcdChar, "V:%-7.1f  I:%-5.3f  ", data.vLoadRms, data.iLoadRms);  
+                LCD_Puts(lcdChar);
+                LCD_Row(3);
+                sprintf(lcdChar, "P:%-7.3f PF:%-6.2f ", data.pLoad, data.pfLoad);
+                LCD_Puts(lcdChar);
+            }
+            else {                
+                if (data.vLoadRms != 0 && data.iLoadRms == 0) {
+                    sprintf(lcdChar, "V:%-7.1f   I:0      ", data.vLoadRms);  
+                    LCD_Puts(lcdChar);                
+                }
+                else if (data.vLoadRms == 0 && data.iLoadRms != 0) {
+                    sprintf(lcdChar, "V:0        I:%-5.3f  ", data.iLoadRms);  
+                    LCD_Puts(lcdChar);
+                }           
+                else {
+                    LCD_Puts("V:0        I:0     "); 
+                }
+                LCD_Row(3);
+                LCD_Puts("P:0       PF:-     ");                
+            }
             break;
             
         case 1:            
             LCD_Puts("PV Data             ");
             LCD_Row(2);
-            sprintf(lcdChar, "V:%-6.3f I:%-6.3f  ", data.vPV, data.iPV);
-            LCD_Puts(lcdChar); 
+            
+            if (data.vPV != 0 && data.iPV != 0) {
+                sprintf(lcdChar, "V:%-6.2f I:%-6.2f  ", data.vPV, data.iPV);
+                LCD_Puts(lcdChar);
+            }
+            else if (data.vPV != 0 && data.iPV == 0) {
+                sprintf(lcdChar, "V:%-6.2f I:0       ", data.vPV);
+                LCD_Puts(lcdChar);
+            }
+            else if (data.vPV == 0 && data.iPV != 0) {
+                sprintf(lcdChar, "V:0      I:%-6.2f  ", data.iPV);
+                LCD_Puts(lcdChar);
+            }
+            else LCD_Puts("V:0      I:0        ");
+             
             LCD_Row(3);
             LCD_Puts("                    ");
             break;
             
         case 2:                        
             LCD_Puts("Battery Data        ");
-            LCD_Row(2);
-            sprintf(lcdChar, "V:%-6.3f I:%-6.3f  ", data.vBatt, data.iBatt);
-            LCD_Puts(lcdChar);         
+            LCD_Row(2);            
+            
+            if (data.vBatt != 0 && data.iBatt != 0) {
+                sprintf(lcdChar, "V:%-6.2f I:%-6.2f  ", data.vBatt, data.iBatt);
+                LCD_Puts(lcdChar);
+            }
+            else if (data.vBatt != 0 && data.iBatt == 0) {
+                sprintf(lcdChar, "V:%-6.2f I:0       ", data.vBatt);
+                LCD_Puts(lcdChar);
+            }
+            else if (data.vBatt == 0 && data.iBatt != 0) {
+                sprintf(lcdChar, "V:0      I:%-6.2f  ", data.iBatt);
+                LCD_Puts(lcdChar);
+            }
+            else LCD_Puts("V:0      I:0        ");
+            
             LCD_Row(3);
             LCD_Puts("                    ");
             break;
@@ -108,7 +153,7 @@ void LCD_Update() {
             sprintf(lcdChar, "V LDR:%-6.3f", data.vLdr);
             LCD_Puts(lcdChar);
             break;
-            
+  
         default:
             break;
     }
