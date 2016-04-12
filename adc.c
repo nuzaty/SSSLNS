@@ -14,23 +14,20 @@
 
 // Parameter get from experiment
 
-#define IPV_OFFSET 1.616
+#define IPV_OFFSET 1.61
 #define IPV_REVERSE_GAIN -10
 
 #define IBATT_OFFSET 1.5966829475
 #define IBATT_REVERSE_GAIN -9.97649657126
 
-#define VPV_OFFSET 0.0025681815
-#define VPV_REVERSE_GAIN 17.3287472688
+#define VPV_OFFSET 0
+#define VPV_REVERSE_GAIN 17.1
 
-#define VBATT_OFFSET 0.003886364
-#define VBATT_REVERSE_GAIN 17.2806534686
+#define VBATT_OFFSET 0
+#define VBATT_REVERSE_GAIN 17
 
-#define ILOAD_OFFSET 1.285
-#define ILOAD_REVERSE_GAIN -0.3502
-
-#define VLOAD_OFFSET 1.667
-#define VLOAD_REVERSE_GAIN -235.83203665
+#define ILOAD_REVERSE_GAIN -3.35
+#define VLOAD_REVERSE_GAIN -239
 
 //ADC Configure
 
@@ -51,6 +48,11 @@ static int result[MAX_CHNUM];
 static long double sumSquareVLoad;
 static long double sumSquareILoad;
 static long double sumVILoad;
+static long double sumVLoad;
+static long double sumILoad;
+
+static double vLoadOffset;
+static double iLoadOffset;
 
 static double sumVPV;
 static double sumIPV;
@@ -61,11 +63,11 @@ static double sumVLdr;
 static unsigned int sampleCount;
 static unsigned int ldrSampleCount;
 
-
 static AdcData data;
-static char stringData[256];
+static char stringData[512];
 
 static unsigned char dataComplete = 0;
+static unsigned char offsetComplete = 0;
 
 //Function Prototype
 
@@ -82,9 +84,10 @@ double ADC_BatteryVoltMeasurement(unsigned int adcValue) {
     return (ADC_ToVolt(adcValue) - VBATT_OFFSET) * VBATT_REVERSE_GAIN ;
 }
 
-double ADC_LoadVoltMeasurement(unsigned int adcValue) {    
-    return (ADC_ToVolt(adcValue) - VLOAD_OFFSET) * VLOAD_REVERSE_GAIN ;
+double ADC_LoadVoltMeasurement(unsigned int adcValue, double offset) {    
+    return (ADC_ToVolt(adcValue) - offset) * VLOAD_REVERSE_GAIN ;
 }
+
 
 // Current Measurement
 
@@ -96,8 +99,16 @@ double ADC_BatteryCurrentMeasurement(unsigned int adcValue) {
     return (ADC_ToVolt(adcValue) - IBATT_OFFSET) * IBATT_REVERSE_GAIN ;
 }
 
-double ADC_LoadCurrentMeasurement(unsigned int adcValue) {
-    return (ADC_ToVolt(adcValue) - ILOAD_OFFSET) * ILOAD_REVERSE_GAIN ;
+double ADC_LoadCurrentMeasurement(unsigned int adcValue, double offset) {
+    double current = (ADC_ToVolt(adcValue) - offset) * ILOAD_REVERSE_GAIN;
+    //if (current > 0) {
+    //    if (current < 0) current = 0;
+    //}
+    //else if (current < 0) {
+    //    if (current > 0) current = 0;
+    //}
+    //return current;
+    return current;
 }
 
 // Basic ADC function
@@ -134,18 +145,24 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
             result[i] = BufferB[i][0];
 	}
     
-    sumVPV += ADC_PvVoltMeasurement(result[VPV]);;
-    sumIPV += ADC_PvCurrentMeasurement(result[IPV]);
-    sumVBatt += ADC_BatteryVoltMeasurement(result[VBATT]);
-    sumIBatt += ADC_BatteryCurrentMeasurement(result[IBATT]);    
-    sumVLdr += ADC_ToVolt(result[VLDR]);
+    if (offsetComplete == 2) {
+        sumVPV += ADC_PvVoltMeasurement(result[VPV]);
+        sumIPV += ADC_PvCurrentMeasurement(result[IPV]);
+        sumVBatt += ADC_BatteryVoltMeasurement(result[VBATT]);
+        sumIBatt += ADC_BatteryCurrentMeasurement(result[IBATT]);    
+        sumVLdr += ADC_ToVolt(result[VLDR]); 
     
-    data.vLoad = ADC_LoadVoltMeasurement(result[VLOAD]);
-    data.iLoad = ADC_LoadCurrentMeasurement(result[ILOAD]);    
-    
-    sumSquareVLoad += data.vLoad * data.vLoad;
-    sumSquareILoad += data.iLoad * data.iLoad;
-    sumVILoad += data.vLoad * data.iLoad;    
+        data.vLoad = ADC_LoadVoltMeasurement(result[VLOAD], vLoadOffset);
+        data.iLoad = ADC_LoadCurrentMeasurement(result[ILOAD], iLoadOffset); 
+        
+        sumSquareVLoad += data.vLoad * data.vLoad;
+        sumSquareILoad += data.iLoad * data.iLoad;
+        sumVILoad += data.vLoad * data.iLoad;
+    }    
+    else {
+        sumVLoad += ADC_ToVolt(result[VLOAD]);
+        sumILoad += ADC_ToVolt(result[ILOAD]);
+    }
 
     ++ldrSampleCount;
     ++sampleCount; 
@@ -158,79 +175,111 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
     
     if (sampleCount == SAMPLE_COUNT) { 
         
-        data.vLoadRms = sqrtl(sumSquareVLoad / SAMPLE_COUNT);
-        data.iLoadRms = sqrtl(sumSquareILoad / SAMPLE_COUNT);
+        if (offsetComplete == 2) {
+            data.vLoadRms = sqrtl(sumSquareVLoad / SAMPLE_COUNT);
+            data.iLoadRms = sqrtl(sumSquareILoad / SAMPLE_COUNT);
         
-        if(data.vLoadRms < 10.0)
-            data.vLoadRms = 0.0;
-        if(data.iLoadRms < 0.05) {
-            data.iLoadRms = 0.0;
-        }
+            data.vPV = sumVPV / SAMPLE_COUNT;
+            data.iPV = sumIPV / SAMPLE_COUNT;
+            data.vBatt = sumVBatt / SAMPLE_COUNT;
+            data.iBatt = sumIBatt / SAMPLE_COUNT;            
         
-        // Calculate Power & PF
-        data.sLoad = data.vLoadRms * data.iLoadRms;   
-        data.pLoad = sumVILoad / SAMPLE_COUNT;
+            // error fix
         
-        data.pfLoad = data.pLoad / data.sLoad;   
-        if (data.pfLoad > 1.0)
-            data.pfLoad = 1.0;    
+            const double iPvErrorFix = 0.1748 - data.iPV*0.0283;
+            if(iPvErrorFix > 0) {
+                data.iPV += iPvErrorFix;
+            }                
         
+            if(data.vPV <= 10) {
+                const double vPvErrorFix =  0.3498 - data.vPV*0.026;
+                data.vPV += vPvErrorFix;
+            }            
+            else if(data.vPV > 20) {
+                data.vPV -= 0.1;
+            }
+            
         
-        data.vPV = sumVPV / SAMPLE_COUNT;
-        data.iPV = sumIPV / SAMPLE_COUNT;
-        data.vBatt = sumVBatt / SAMPLE_COUNT;
-        data.iBatt = sumIBatt / SAMPLE_COUNT;
-        
-        // error fix        
-        
-        const double iPvErrorFix = 0.1748 - data.iPV*0.0283;
-        if(iPvErrorFix > 0) {
-            data.iPV += iPvErrorFix;
-        }                
-        
-        if(data.vPV <= 10) {
-            const double vPvErrorFix =  0.3498 - data.vPV*0.026;
-            data.vPV += vPvErrorFix;
-        }            
-        else if(data.vPV > 20) {
-            data.vPV -= 0.1;
-        }
-        
-        data.iBatt += 0.07;
-        if(data.iBatt <= 0.8)
-            data.iBatt += 0.05;
-        else if(data.iBatt <= 2)
-            data.iBatt += 0.02;
+            data.iBatt += 0.07;
+            if(data.iBatt <= 0.8)
+                data.iBatt += 0.05;
+            else if(data.iBatt <= 2)
+                data.iBatt += 0.02;
                 
-        if (data.vBatt < 12.0) {
-            const double vBattErrorFix = 0.4102 - 0.0237 * data.vBatt;
-            data.vBatt += vBattErrorFix;
+            if (data.vBatt < 12.0) {
+                const double vBattErrorFix = 0.4102 - 0.0237 * data.vBatt;
+                data.vBatt += vBattErrorFix;
+            }
+            
+            // set zero if near zero
+            
+            if(data.vLoadRms <  10) {                
+                data.vLoadRms = 0.0;
+            }
+            if(data.iLoadRms < 0.05) {
+                data.iLoadRms = 0.0;
+            }
+        
+            if ((data.iPV > 0 && data.iPV < 0.15) || (data.iPV < 0 && data.iPV > -0.15))
+                data.iPV = 0;
+        
+            if ((data.vPV > 0 && data.vPV < 1.5) || (data.vPV < 0 && data.vPV > -1.5))
+                data.vPV = 0;
+        
+            if ((data.vBatt > 0 && data.vBatt < 1.5) || (data.vBatt < 0 && data.vBatt > -1.5))
+                data.vBatt = 0;
+        
+            if ((data.iBatt > 0 && data.iBatt < 0.15) || (data.iBatt < 0 && data.iBatt > -0.15))
+                data.iBatt = 0;
+            
+            // Calculate Power & PF
+            data.sLoad = data.vLoadRms * data.iLoadRms;   
+            
+            if (data.sLoad != 0 ) data.pLoad = sumVILoad / SAMPLE_COUNT;
+            else data.pLoad = 0;
+            
+            if (data.sLoad >= 5) data.pfLoad = data.pLoad / data.sLoad;
+            else data.pfLoad = 0.0;            
+            if (1.0 - data.pfLoad < 0.025)
+                data.pfLoad = 1.0;                        
+            
+            data.pBatt =  data.vBatt * data.iBatt;            
+            data.pPv = data.vPV * data.iPV;
+            
+            if (data.pBatt == 0) {
+                data.efficiency = 100.00;
+            }
+            else data.efficiency = 100.00 * (data.pLoad/data.pBatt);
+            
+            const double sec = T89_GetSec();
+            T89_Reset();
+            data.eLoad += (data.pLoad * sec) / (3600000.0);
+            data.eBatt += (data.pBatt * sec) / (3600000.0);           
+            data.ePv += (data.pPv * sec) / (3600000.0);
+        
+            sprintf(stringData, 
+                "%.1f, %.3f, %.2f, %.4Lf, %.2f, "
+                "%.2f, %.2f, %.2f, %.2f, %.4Lf, "
+                "%.2f, %.2f, %.2f, %.4Lf, "                
+                "%.2f",
+                data.vLoadRms, data.iLoadRms,data.pLoad, data.eLoad, data.pfLoad,
+                data.vBatt, data.iBatt, data.pBatt, data.percentBatt, data.eBatt,
+                data.vPV, data.iPV, data.pPv, data.ePv, 
+                data.efficiency);                          
+        
+            dataComplete = 1;
+            SDC_Update();
+        }
+        else {
+            vLoadOffset = sumVLoad/SAMPLE_COUNT;
+            iLoadOffset = sumILoad/SAMPLE_COUNT;
+        
+            sumVLoad = 0;
+            sumILoad = 0;
+            offsetComplete += 1;   
+            T89_Reset();
         }
         
-        // data display
-        
-        if ((data.iPV > 0 && data.iPV < 0.15) || (data.iPV < 0 && data.iPV > -0.15))
-            data.iPV = 0;
-        
-        if ((data.vPV > 0 && data.vPV < 0.5) || (data.vPV < 0 && data.vPV > -0.5))
-            data.vPV = 0;
-        
-        if ((data.vBatt > 0 && data.vBatt < 0.5) || (data.vBatt < 0 && data.vBatt > -0.5))
-            data.vBatt = 0;
-        
-        if ((data.iBatt > 0 && data.iBatt < 0.15) || (data.iBatt < 0 && data.iBatt > -0.15))
-            data.iBatt = 0;
-        
-        sprintf(stringData, 
-            "%.4f, %.4f, "
-            "%.4f, %.4f, "
-            "%.4f, %.4f, "
-            "%.4f, %.4f",
-            data.vPV, data.iPV,
-            data.vBatt, data.iBatt,
-            data.vLoadRms, data.iLoadRms,
-            data.pLoad, data.pfLoad);        
-    
         //Reset All
         sumVPV = 0;
         sumIPV = 0;
@@ -240,9 +289,7 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
         sumSquareVLoad = 0;
         sumSquareILoad = 0;
         sumVILoad = 0;
-        sampleCount = 0;   
-        
-        dataComplete = 1;
+        sampleCount = 0;
     }    
      
 	DmaBuffer ^= 1;  // ^ = OR
@@ -274,10 +321,10 @@ void ADC_Init(void) {
 	AD1CON4bits.DMABL = 3;                  // Each buffer contains 8 words
 
     AD1CSSH = 0x0000;
-	AD1CSSL = 0x007F;	 // Enable AN0-AN6 for channel scan
+	AD1CSSL = 0x007F;	 // Enable AN0-AN7 (except AN6) for channel scan
  
 	AD1PCFGH=0xFFFF;
-	AD1PCFGL=0xFF80;    // AN0-AN6 as Analog Input
+	AD1PCFGL=0xFF80;    // AN0-AN7 (except AN6) as Analog Input
 	
 	IFS0bits.AD1IF   = 0;	// Clear the A/D interrupt flag bit
 	IEC0bits.AD1IE   = 0;	// Do Not Enable A/D interrupt
@@ -306,17 +353,20 @@ void DMA_Init(void) {
 	DMA0CONbits.CHEN=1;				// Enable DMA
 }
 
-// old function
-
-/**
 double ADC_GetLux(void) {
     const double volt = ADC_GetLdrVolt();
     return 28642000000 * powl((volt * 10000 / 3.3 - volt), -2.6028);
 }
 
+double ADC_GetPercentBattery(void) {
+    return data.percentBatt;
+}
 
+// old function
+
+/**
 double ADC_GetVolt(unsigned int ch) {
     return ADC_ToVolt(result[ch]);
 }
-
 **/
+

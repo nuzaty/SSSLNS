@@ -17,8 +17,11 @@ typedef struct Dates {
 void I2C1_Init(void);
 void RTCC_Update(void);
 
-char* RTCC_GetLcdString(void);
+char* RTCC_GetLcdDate(void);
+char* RTCC_GetLcdTime(void);
 char* RTCC_GetStringData(void);
+
+Time RTCC_GetTime(void);
 
 void RTCC_WriteTime(char hr, char min, char sec);
 void RTCC_WriteDate(char day, char date, char month, char year);

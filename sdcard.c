@@ -208,8 +208,7 @@ void SDC_Start(void) {
     FIOError = 0;    
     
     if(!SD_Init()) {
-        LCD_Row(4);
-        LCD_Puts("Setting up SD Card..");
+        strcpy(sdCardText, "Setting up SD Card..");
         if (!FileIO_Init()) {
             fp = &f;
             unsigned int i = 0;    
@@ -225,24 +224,26 @@ void SDC_Start(void) {
                     fileData[i] = 0;    
                 }
                 FIOError = 0;
-                sprintf(fileData,"DateTime, VPV, IPV, VBATT, IBATT, VLOAD, ILOAD, PLOAD, PFLOAD\r");
+                strcpy(fileData,
+                        "DateTime, "
+                        "VLOAD, ILOAD, PLOAD, ELOAD, PFLOAD, "
+                        "VBATT, IBATT, PBATT, %BATT, EBATT, "
+                        "VPV, IPV, PPV, EPV, "
+                        "%EFF\r");
                 FileIO_Append(fp);  
                 sdCardModuleStart = 1;
-                LCD_Row(4);
-                LCD_Puts("Recording Data...   ");
+                strcpy(sdCardText, "Recording Data...   ");
                 return;
             }               
         }   
     }
-    LCD_Row(4);
-    LCD_Puts("Insert SD Card      ");    
+    strcpy(sdCardText, "Insert SD Card      ");    
 }
 
 void SDC_Stop(void) {
     sdCardModuleStart = 0;
     if (fp != NULL) FileIO_Close(fp);
-    LCD_Row(4);
-    LCD_Puts("Safe to Remove Card "); 
+    strcpy(sdCardText, "Safe to Remove Card "); 
 }
 
 void SDC_Update(void) {

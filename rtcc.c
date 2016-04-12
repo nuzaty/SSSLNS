@@ -4,7 +4,8 @@
 #define FSCL 400000L  		//400 kHz
 #define I2CxBRG (FCY/FSCL - FCY/1111111L)    //Baud Rate Generator
 
-static char lcdString[21];
+static char lcdDate[21];
+static char lcdTime[21];
 static char stringData[32];
 static Date date;
 static Time time;
@@ -88,13 +89,15 @@ void RTCC_Update(void) {
     char yearOnes = date.year & 0x0F;
     char yearTens = (date.year & 0xF0) >> 4;
     
-    sprintf(lcdString, "%d%d/%d%d/%d%d %d%d:%d%d:%d%d   ", 
+    sprintf(lcdDate, "Date: %d%d/%d%d/%d%d      ", 
             dateTens, dateOnes, 
             monthTens, monthOnes, 
-            yearTens, yearOnes,
+            yearTens, yearOnes);
+    
+    sprintf(lcdTime, "Time: %d%d:%d%d:%d%d      ",
             hrTens, hrOnes, 
             minTens, minOnes,            
-            secTens, secOnes);
+            secTens, secOnes);            
         
     sprintf(stringData, "%d%d/%d%d/%d%d %d%d:%d%d:%d%d",
             dateTens, dateOnes, 
@@ -105,8 +108,16 @@ void RTCC_Update(void) {
             secTens, secOnes);
 }
 
-char* RTCC_GetLcdString(void) {  
-    return lcdString;
+Time RTCC_GetTime(void) {
+    return time;
+}
+
+char* RTCC_GetLcdDate(void) {  
+    return lcdDate;
+}
+
+char* RTCC_GetLcdTime(void) {  
+    return lcdTime;
 }
 
 char* RTCC_GetStringData(void) {
