@@ -143,7 +143,7 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
             result[i] = BufferA[i][0];
         else
             result[i] = BufferB[i][0];
-	}
+    }
     
     if (offsetComplete == 2) {
         sumVPV += ADC_PvVoltMeasurement(result[VPV]);
@@ -292,8 +292,8 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
         sampleCount = 0;
     }    
      
-	DmaBuffer ^= 1;  // ^ = OR
-	IFS0bits.DMA0IF = 0;		// Clear the DMA0 Interrupt Flag
+    DmaBuffer ^= 1;  // ^ = OR
+    IFS0bits.DMA0IF = 0;		// Clear the DMA0 Interrupt Flag
 }
 
 // ADC
@@ -301,35 +301,35 @@ void __attribute__((interrupt, no_auto_psv)) _DMA0Interrupt(void)
 void ADC_Init(void) {
 
     AD1CON1bits.FORM = 0;	  	// Unsinged Integer Format
-	AD1CON1bits.SSRC = 7;		// Auto conversion
+    AD1CON1bits.SSRC = 7;		// Auto conversion
     AD1CON1bits.ASAM = 0;		// Sampling begins immediately after last conversion. SAMP bit is auto-set    
     
-	AD1CON1bits.AD12B = 1;		// 12-bit ADC operation	
+    AD1CON1bits.AD12B = 1;		// 12-bit ADC operation	
 
     AD1CON2bits.ALTS = 0;
     AD1CHS0bits.CH0NA = 0;   
-	AD1CON2bits.CSCNA = 1;		// Scan Input Selections for CH0+ during Sample A bit
-	AD1CON2bits.CHPS = 0;		// Converts CH0
+    AD1CON2bits.CSCNA = 1;		// Scan Input Selections for CH0+ during Sample A bit
+    AD1CON2bits.CHPS = 0;		// Converts CH0
     
     AD1CON3bits.ADRC = 0;		// ADC Clock is derived from Systems Clock
-	AD1CON3bits.SAMC = 6;		// Auto Sample Time = 6 * Tad	
-	AD1CON3bits.ADCS = 5;		// 1 Tad = 6/40
+    AD1CON3bits.SAMC = 6;		// Auto Sample Time = 6 * Tad	
+    AD1CON3bits.ADCS = 5;		// 1 Tad = 6/40
     
-	AD1CON1bits.ADDMABM = 0;                // DMA buffers are built in scatter/gather mode
-	AD1CON2bits.SMPI = (NUM_CHS2SCAN-1);	// Genertate DMA interrupt every NUM_CHS2SCAN sample
+    AD1CON1bits.ADDMABM = 0;                // DMA buffers are built in scatter/gather mode
+    AD1CON2bits.SMPI = (NUM_CHS2SCAN-1);	// Genertate DMA interrupt every NUM_CHS2SCAN sample
         
-	AD1CON4bits.DMABL = 3;                  // Each buffer contains 8 words
+    AD1CON4bits.DMABL = 3;                  // Each buffer contains 8 words
 
     AD1CSSH = 0x0000;
-	AD1CSSL = 0x007F;	 // Enable AN0-AN7 (except AN6) for channel scan
+    AD1CSSL = 0x007F;	 // Enable AN0-AN7 (except AN6) for channel scan
  
-	AD1PCFGH=0xFFFF;
-	AD1PCFGL=0xFF80;    // AN0-AN7 (except AN6) as Analog Input
-	
-	IFS0bits.AD1IF   = 0;	// Clear the A/D interrupt flag bit
-	IEC0bits.AD1IE   = 0;	// Do Not Enable A/D interrupt
+    AD1PCFGH=0xFFFF;
+    AD1PCFGL=0xFF80;    // AN0-AN7 (except AN6) as Analog Input
+    
+    IFS0bits.AD1IF   = 0;	// Clear the A/D interrupt flag bit
+    IEC0bits.AD1IE   = 0;	// Do Not Enable A/D interrupt
            
-	AD1CON1bits.ADON = 1;	// Turn on the A/D converter
+    AD1CON1bits.ADON = 1;	// Turn on the A/D converter
     delay_ms(1);			// Delay to allow ADC to settle         
     AD1CON1bits.ASAM = 1;
         
@@ -338,19 +338,19 @@ void ADC_Init(void) {
 
 void DMA_Init(void) {
     
-	DMA0CONbits.AMODE = 2;			// Configure DMA for Peripheral indirect mode
-	DMA0CONbits.MODE  = 2;			// Configure DMA for Continuous Ping-Pong mode
-	DMA0PAD=(int)&ADC1BUF0;         // Peripheral Address Register bits
-	DMA0CNT = (SAMP_BUFF_SIZE*NUM_CHS2SCAN)-1; //DMA Transfer Count Register bits		
-	DMA0REQ = 13;					// Select ADC1 as DMA Request source
+    DMA0CONbits.AMODE = 2;			// Configure DMA for Peripheral indirect mode
+    DMA0CONbits.MODE  = 2;			// Configure DMA for Continuous Ping-Pong mode
+    DMA0PAD=(int)&ADC1BUF0;         // Peripheral Address Register bits
+    DMA0CNT = (SAMP_BUFF_SIZE*NUM_CHS2SCAN)-1; //DMA Transfer Count Register bits		
+    DMA0REQ = 13;					// Select ADC1 as DMA Request source
 
-	DMA0STA = __builtin_dmaoffset(BufferA);		
-	DMA0STB = __builtin_dmaoffset(BufferB);
+    DMA0STA = __builtin_dmaoffset(BufferA);		
+    DMA0STB = __builtin_dmaoffset(BufferB);
 
-	IFS0bits.DMA0IF = 0;			//Clear the DMA interrupt flag bit
+    IFS0bits.DMA0IF = 0;			//Clear the DMA interrupt flag bit
     IEC0bits.DMA0IE = 1;			//Set the DMA interrupt enable bit
 
-	DMA0CONbits.CHEN=1;				// Enable DMA
+    DMA0CONbits.CHEN=1;				// Enable DMA
 }
 
 double ADC_GetLux(void) {
@@ -361,12 +361,3 @@ double ADC_GetLux(void) {
 double ADC_GetPercentBattery(void) {
     return data.percentBatt;
 }
-
-// old function
-
-/**
-double ADC_GetVolt(unsigned int ch) {
-    return ADC_ToVolt(result[ch]);
-}
-**/
-

@@ -61,7 +61,7 @@ void SPI2_SpeedUp() {
 }
 
 unsigned char SPI2_Write(unsigned char data) {
-	SPI2BUF = data;		// write the data out to the SPI peripheral
+    SPI2BUF = data;		// write the data out to the SPI peripheral
     while (!SPI2STATbits.SPIRBF);	// wait for the data to be sent out	
     return SPI2BUF;
 }

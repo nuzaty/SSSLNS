@@ -2,7 +2,7 @@
 #include "all.h"
 
 void UART1_Init(void) {
-	// Configure U1MODE    
+    // Configure U1MODE    
     /* 
      * Continue in Idle
      * No IR translation 
@@ -15,21 +15,21 @@ void UART1_Init(void) {
      * 16 clocks per bit period
      * 8bit, No Parity, One Stop Bit
      */
-	U1MODE = 0;		
-	U1BRG = UxBRG;	
+    U1MODE = 0;		
+    U1BRG = UxBRG;	
 
-	// Configure U1 Status
+    // Configure U1 Status
     /* Clear all status
      * The transmit buffer becomes empty after Interrupt
      * Interrupt on character recieved
      * Address Detect Disabled
      */
     U1STA = 0;
-	U1STAbits.UTXISEL1 = 1;
+    U1STAbits.UTXISEL1 = 1;
 
     // And turn the peripheral on
-	U1MODEbits.UARTEN = 1;
-	U1STAbits.UTXEN = 1;    
+    U1MODEbits.UARTEN = 1;
+    U1STAbits.UTXEN = 1;    
 }
 
 void UART1_Puts(char *string) {

@@ -51,9 +51,9 @@ void LCD_Nibble(unsigned char nibble) {
     RW = LCDWRITE;
     
     EN = 1;
-	delay_ms(2);       
+    delay_ms(2);       
     LATD = (PORTD & 0xF0) | nibble; 
-	delay_ms(1);
+    delay_ms(1);
     EN = 0;
 }
 
@@ -64,59 +64,59 @@ void LCD_Command(unsigned char com)
     RW = LCDWRITE;
     
     EN = 1;
-	delay_ms(2);       
+    delay_ms(2);       
     LATD = (PORTD & 0xF0) | com >> 4; 
-	delay_ms(1);
+    delay_ms(1);
     EN = 0;
     
     EN = 1;
-	delay_ms(2);       
+    delay_ms(2);       
     LATD = (PORTD & 0xF0) | (com & 0x0F); 
-	delay_ms(1);
+    delay_ms(1);
     EN = 0;
 }
 
 // Send data
 void LCD_Data(unsigned char data)
 {
-	RS = LCDDATA;
-	RW  = LCDWRITE;
+    RS = LCDDATA;
+    RW  = LCDWRITE;
    
     EN = 1;
-	delay_ms(2);       
+    delay_ms(2);       
     LATD = (PORTD & 0xF0) | data >> 4; 
-	delay_ms(1);
+    delay_ms(1);
     EN = 0;
     
     EN = 1;
-	delay_ms(2);       
+    delay_ms(2);       
     LATD = (PORTD & 0xF0) | (data & 0x0F); 
-	delay_ms(1);
+    delay_ms(1);
     EN = 0;
 }
 
 // put String to LCD Display
 void LCD_Puts(char *p)
 {	
-	while(*p)
-	{
-		LCD_Data(*p);
-		p++;
-	}
+    while(*p)
+    {
+        LCD_Data(*p);
+        p++;
+    }
 }
 
 // set cursor to home
 void LCD_Home(void) 
 {
-	LCD_Command(0x02); // return cursor to home (0,0)
-	delay_ms(1);
+    LCD_Command(0x02); // return cursor to home (0,0)
+    delay_ms(1);
 }
 
 // clear display
 void LCD_Clear(void)
 {
-	LCD_Command(0x01); // clear display, return cursor to home
-	delay_ms(1);
+    LCD_Command(0x01); // clear display, return cursor to home
+    delay_ms(1);
 }
 
 // set cursor position

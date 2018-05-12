@@ -14,21 +14,21 @@ void I2C1_Init(void) {
     
     unsigned int config;		// Keep configuration i2c module
 
-	config = (I2C1_ON & 		// Enable i2c module            
-			I2C1_IDLE_CON & 	// i2c module working on Idle mode
-			I2C1_CLK_REL & 		// Release clock
-			I2C1_IPMI_DIS & 	// Disable IPMI mode
-			I2C1_7BIT_ADD& 		// Address mode 7 bit
-			I2C1_SLW_DIS & 		// Disable slew rate
-			I2C1_SM_DIS &		// Disable SMBus 		
-			I2C1_GCALL_DIS & 	// Disable General call
-			I2C1_STR_DIS &		// Disable clock stretch 
-			I2C1_ACK & 			// Acknowledge data 
-			I2C1_ACK_DIS & 		// Initial disable acknowledge
-			I2C1_RCV_DIS &		// Initial disable receive
-			I2C1_STOP_DIS &     // Initial disable stop condition
-			I2C1_RESTART_DIS& 	// Initial disable restart condition
-			I2C1_START_DIS &     // Initial disable start condition
+    config = (I2C1_ON & 		// Enable i2c module            
+            I2C1_IDLE_CON & 	// i2c module working on Idle mode
+            I2C1_CLK_REL & 		// Release clock
+            I2C1_IPMI_DIS & 	// Disable IPMI mode
+            I2C1_7BIT_ADD& 		// Address mode 7 bit
+            I2C1_SLW_DIS & 		// Disable slew rate
+            I2C1_SM_DIS &		// Disable SMBus 		
+            I2C1_GCALL_DIS & 	// Disable General call
+            I2C1_STR_DIS &		// Disable clock stretch 
+            I2C1_ACK & 			// Acknowledge data 
+            I2C1_ACK_DIS & 		// Initial disable acknowledge
+            I2C1_RCV_DIS &		// Initial disable receive
+            I2C1_STOP_DIS &     // Initial disable stop condition
+            I2C1_RESTART_DIS& 	// Initial disable restart condition
+            I2C1_START_DIS &     // Initial disable start condition
             MI2C1_INT_ON );		// Enable interrupt module i2c in master mode
     
     OpenI2C1(config, I2CxBRG);    
